@@ -274,11 +274,40 @@ typedef NS_ENUM(NSInteger, CYLSex) {
 不同点：
  
  1. `weak` 此特质表明该属性定义了一种“非拥有关系” (nonowning relationship)。为这种属性设置新值时，设置方法既不保留新值，也不释放旧值。此特质同assign类似，
-然而在属性所指的对象遭到摧毁时，属性值也会清空(nil out)。
+然而在属性所指的对象执行dealloc时，属性值也会清空(nil out)。
 而 `assign` 的“设置方法”只会执行针对“纯量类型” (scalar type，例如 CGFloat 或 
 NSlnteger 等)的简单赋值操作。
 
- 2. assign 可以用非 OC 对象,而 weak 必须用于 OC 对象
+ 2. assign 可以用非 OC 对象,而 weak 必须用于 OC 对象 
+ 
+ 
+ Clang's document on Objective-C Automatic Reference Counting (ARC) explains the ownership qualifiers and modifiers clearly:
+
+There are four ownership qualifiers:
+
+__autoreleasing
+__strong
+__*unsafe_unretained*
+__weak
+A type is nontrivially ownership-qualified if it is qualified with __autoreleasing, __strong, or __weak.
+Then there are six ownership modifiers for declared property:
+
+assign implies __*unsafe_unretained* ownership.
+copy implies __strong ownership, as well as the usual behavior of copy semantics on the setter.
+retain implies __strong ownership.
+strong implies __strong ownership.
+*unsafe_unretained* implies __*unsafe_unretained* ownership.
+weak implies __weak ownership.
+With the exception of weak, these modifiers are available in non-ARC modes.
+Semantics wise, the ownership qualifiers have different meaning in the five managed operations: Reading, Assignment, Initialization, Destruction and Moving, in which most of times we only care about the difference in Assignment operation.
+
+Assignment occurs when evaluating an assignment operator. The semantics vary based on the qualification:
+
+For __strong objects, the new pointee is first retained; second, the lvalue is loaded with primitive semantics; third, the new pointee is stored into the lvalue with primitive semantics; and finally, the old pointee is released. This is not performed atomically; external synchronization must be used to make this safe in the face of concurrent loads and stores.
+For __weak objects, the lvalue is updated to point to the new pointee, unless the new pointee is an object currently undergoing deallocation, in which case the lvalue is updated to a null pointer. This must execute atomically with respect to other assignments to the object, to reads from the object, and to the final release of the new pointee.
+For __*unsafe_unretained* objects, the new pointee is stored into the lvalue using primitive semantics.
+For __autoreleasing objects, the new pointee is retained, autoreleased, and stored into the lvalue using primitive semantics.
+The other difference in Reading, Init, Destruction and Moving, please refer to Section 4.2 Semantics in the document.
 
 ###3. 怎么用 copy 关键字？
 用途：
